@@ -12,35 +12,27 @@ In this section we read the data and do a bit of processing to simplify plotting
 
 
 ```r
-# Options for number formatting
+# Options for number formatting, load libraries
 options(scipen=2, digits=2)
 library(data.table)
+library(ggplot2)
 # Read the data, unz helps us read the zip-file directly
 data <- read.csv(unz("activity.zip", "activity.csv"), colClasses=c("numeric", "Date", "integer"))
 DT <- data.table(data)
-# Create a time field for plotting, since the interval is not suitable for this
-DT[, `:=`(ihour=as.numeric((interval%/%100)+(interval%%100)/60.0))]
-```
-
-```
-##        steps       date interval  ihour
-##     1:    NA 2012-10-01        0  0.000
-##     2:    NA 2012-10-01        5  0.083
-##     3:    NA 2012-10-01       10  0.167
-##     4:    NA 2012-10-01       15  0.250
-##     5:    NA 2012-10-01       20  0.333
-##    ---                                 
-## 17564:    NA 2012-11-30     2335 23.583
-## 17565:    NA 2012-11-30     2340 23.667
-## 17566:    NA 2012-11-30     2345 23.750
-## 17567:    NA 2012-11-30     2350 23.833
-## 17568:    NA 2012-11-30     2355 23.917
+# Create a time field (in hours) for plotting, since the interval is not suitable for this
+# Since this updates in place, wrap in invisible() to suppress output
+invisible(DT[, `:=`(ihour=as.numeric((interval%/%100)+(interval%%100)/60.0))])
+# Support function for plotting time values (7.75 ->  07:45)
+timeFormatter <- function(hours) {
+    h <- hours%/%1
+    m <- round(60*(hours%%1))
+    sprintf("%02d:%02d", h, m)
+}
 ```
 
 ## What is mean total number of steps taken per day?
 
 ```r
-library(ggplot2)
 # Create a sum of steps by date
 DS <- DT[!is.na(steps),.(stepsum=sum(steps)), by=date]
 # Plot a histogram
@@ -61,14 +53,16 @@ The mean numer of steps per day is 10766.19 and the median 10765 steps.
 ## What is the average daily activity pattern?
 
 ```r
+# Calculate averages for each interval
 AD <- DT[, .(smean=mean(steps, na.rm=T)), .(interval,ihour)]
-with(AD, plot(ihour, smean, type="l", xlab="Time of day (hours)", ylab="Steps", main="Average daily activity pattern"))
+
+# plot
+qplot(data=AD, x=ihour, y=smean, geom="line", xlab="Time of day",ylab="Mean number of steps") + scale_x_continuous(breaks=c(0,6,12,18,24), label=timeFormatter) + ggtitle("Average daily activity pattern")
 ```
 
 ![plot of chunk unnamed-chunk-3](figure/unnamed-chunk-3-1.png) 
 
 ```r
-#with(AD, plot(interval, smean, type="l", xlab="Interval"))
 # Find the top interval
 top_interval <- AD[smean==(AD[, max(smean)]), interval]
 thour = top_interval %/% 100
@@ -85,7 +79,8 @@ Impute missing values by using the mean for that interval.
 
 ```r
 # How many missing values are there?
-DT[is.na(steps), .("Missing values"=.N)]
+missingvals <- DT[is.na(steps), .("Missing values"=.N)]
+missingvals
 ```
 
 ```
@@ -111,12 +106,19 @@ hist(DSI$stepsum, xlab="Number of steps", main="Histogram of total daily steps")
 imeansteps <- mean(DSI[,stepsum])
 imediansteps <- median(DSI[,stepsum])
 ```
-The mean number of steps per day is 10766.19 and the median 10766.19 steps. Since we use the mean to impute the missing values, it is unchanged, but the median has changed, the old median was 10765.
+There were 2304 missing values before imputing.  
+After imputing, the mean number of steps per day is 10766.19 and the median 10766.19 steps. Since we use the mean to impute the missing values, it is unchanged, but the median has changed, the old median was 10765.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
+To separate weekdays from weekends we add weekdays to the table, then apply a custom function to check if it is a weekday or weekend, storing the result as a factor.
+
+
 ```r
+# Add weekday names to the table
+invisible(DTI[,`:=`(wd=weekdays(strptime(date, format="%Y-%m-%d")))])
+# Support function to map days to weekday/weekend
 daytype <- function(dayname) {
     weekdays <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
     if(dayname %in% weekdays) {
@@ -124,11 +126,14 @@ daytype <- function(dayname) {
     }
     factor("weekend", c("weekday", "weekend"))
 }
-
-invisible(DTI[,`:=`(wd=weekdays(strptime(date, format="%Y-%m-%d")))])
+# Apply the function above to the weekday data
 invisible(DTI[,we:=sapply(wd, daytype)])
+# Calculate means for each interval on weekdays/weekends
 WS <- DTI[, .(smean=mean(steps, na.rm=T)), by=.(interval, ihour, we)]
-qplot(data=WS, x=ihour, y=smean, facets=we~., geom="line", xlab="Time of day (hours)",ylab="Mean number of steps")
+# Plot the result
+qplot(data=WS, x=ihour, y=smean, facets=we~., geom="line", xlab="Time of day",ylab="Mean number of steps") + scale_x_continuous(breaks=c(0,6,12,18,24), label=timeFormatter) + ggtitle("Activity patterns weekday/weekend")
 ```
 
 ![plot of chunk unnamed-chunk-5](figure/unnamed-chunk-5-1.png) 
+
+As can be seen in the plot, activity starts later on weekends but goes on for longer in the evening.

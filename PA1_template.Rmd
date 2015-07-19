@@ -45,12 +45,12 @@ The mean numer of steps per day is `r meansteps` and the median `r mediansteps` 
 
 ## What is the average daily activity pattern?
 ```{r}
+# Calculate averages for each interval
 AD <- DT[, .(smean=mean(steps, na.rm=T)), .(interval,ihour)]
-#with(AD, plot(ihour, smean, type="l", xlab="Time of day (hours)", ylab="Steps", main="Average daily activity pattern"))
 
+# plot
 qplot(data=AD, x=ihour, y=smean, geom="line", xlab="Time of day",ylab="Mean number of steps") + scale_x_continuous(breaks=c(0,6,12,18,24), label=timeFormatter) + ggtitle("Average daily activity pattern")
 
-#with(AD, plot(interval, smean, type="l", xlab="Interval"))
 # Find the top interval
 top_interval <- AD[smean==(AD[, max(smean)]), interval]
 thour = top_interval %/% 100

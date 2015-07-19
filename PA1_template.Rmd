@@ -40,7 +40,7 @@ meansteps <- mean(DS[,stepsum])
 mediansteps <- median(DS[,stepsum])
 ```
 
-The mean numer of steps per day is `r meansteps` and the median `r mediansteps` steps.
+The mean number of steps per day is `r meansteps` and the median `r mediansteps` steps.
 
 
 ## What is the average daily activity pattern?

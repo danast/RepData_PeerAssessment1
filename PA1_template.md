@@ -47,7 +47,7 @@ meansteps <- mean(DS[,stepsum])
 mediansteps <- median(DS[,stepsum])
 ```
 
-The mean numer of steps per day is 10766.19 and the median 10765 steps.
+The mean number of steps per day is 10766.19 and the median 10765 steps.
 
 
 ## What is the average daily activity pattern?
